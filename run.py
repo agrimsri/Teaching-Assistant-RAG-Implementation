@@ -19,6 +19,7 @@ from PIL import Image
 from io import BytesIO
 import io
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 load_dotenv()
 
@@ -35,6 +36,10 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(lifespan=lifespan)
+
+# Serve the static frontend (so the container can serve UI + API). This mounts the `frontend/`
+# directory at the root URL and will serve `index.html` when users visit `/`.
+app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
 
 # Enable CORS for all origins (adjust as needed)
 app.add_middleware(
