@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IITM Virtual Teaching Assistant</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>🎓 IITM Virtual Teaching Assistant</h1>
+        <p class="subtitle">
+          Ask questions and get instant answers with AI assistance
+        </p>
+      </div>
+
+      <div class="input-section">
+        <textarea
+          id="question"
+          rows="4"
+          placeholder="Ask your question here..."
+        ></textarea>
+
+        <div class="actions">
+          <div class="file-upload-wrapper">
+            <label for="imageInput" class="file-upload-label">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                <polyline points="21 15 16 10 5 21"></polyline>
+              </svg>
+              <span id="fileName">Attach Image</span>
+            </label>
+            <input type="file" id="imageInput" accept="image/*" />
+          </div>
+          <button id="askBtn">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+            Ask Question
+          </button>
+        </div>
+      </div>
+
+      <div id="loading" class="loading" style="display: none">
+        <div class="spinner"></div>
+        <p>Processing your query...</p>
+      </div>
+
+      <div id="responseSection" class="response-section" style="display: none">
+        <h2 class="response-title">Answer</h2>
+        <div class="answer" id="answer"></div>
+        <div id="linksWrapper" style="display: none">
+          <h3 class="links-title">Related Resources</h3>
+          <div class="links" id="links"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const askBtn = document.getElementById("askBtn");
+      const questionInput = document.getElementById("question");
+      const imageInput = document.getElementById("imageInput");
+      const fileName = document.getElementById("fileName");
+      const loadingDiv = document.getElementById("loading");
+      const responseSection = document.getElementById("responseSection");
+      const answerDiv = document.getElementById("answer");
+      const linksDiv = document.getElementById("links");
+      const linksWrapper = document.getElementById("linksWrapper");
+
+      imageInput.addEventListener("change", (e) => {
+        if (e.target.files[0]) {
+          fileName.textContent = e.target.files[0].name;
+        } else {
+          fileName.textContent = "Attach Image";
+        }
+      });
+
+      askBtn.addEventListener("click", async () => {
+        const question = questionInput.value.trim();
+        if (!question) {
+          alert("Please enter a question!");
+          return;
+        }
+
+        loadingDiv.style.display = "flex";
+        responseSection.style.display = "none";
+
+        let base64Image = null;
+        const file = imageInput.files[0];
+        if (file) {
+          base64Image = await toBase64(file);
+        }
+
+        const payload = { question, image: base64Image };
+
+        try {
+          const response = await fetch("http://localhost:5000/api/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const data = await response.json();
+          loadingDiv.style.display = "none";
+          responseSection.style.display = "block";
+
+          // Parse markdown and render as HTML
+          const markdownText = data.answer || "No answer found.";
+          answerDiv.innerHTML = marked.parse(markdownText);
+
+          if (data.links && data.links.length > 0) {
+            linksWrapper.style.display = "block";
+            linksDiv.innerHTML = "";
+            data.links.forEach((link) => {
+              const a = document.createElement("a");
+              a.href = link.url;
+              a.target = "_blank";
+              a.textContent = link.text;
+              linksDiv.appendChild(a);
+            });
+          } else {
+            linksWrapper.style.display = "none";
+          }
+        } catch (err) {
+          loadingDiv.style.display = "none";
+          alert("Error connecting to backend.");
+          console.error(err);
+        }
+      });
+
+      questionInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && e.ctrlKey) {
+          askBtn.click();
+        }
+      });
+
+      function toBase64(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
+    </script>
+  </body>
+</html>
